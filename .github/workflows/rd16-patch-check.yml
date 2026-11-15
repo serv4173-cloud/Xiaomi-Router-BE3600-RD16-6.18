@@ -73,9 +73,26 @@ jobs:
           grep -q '^CONFIG_TARGET_qualcommbe_ipq53xx_DEVICE_xiaomi_rd16=y' .config
           make target/linux/prepare V=s -j"$(nproc)"
 
+      - name: Compile RD16 DTS with dtc
+        run: |
+          set -eu
+          sudo apt-get install -y -qq device-tree-compiler
+          cd tree
+          k=$(ls -d build_dir/target-*/linux-qualcommbe_ipq53xx/linux-6.18.* | head -n1)
+          d="$k/arch/arm64/boot/dts/qcom"
+          mkdir -p "$d"
+          [ -f "$d/ipq5332-xiaomi-rd16.dts" ] || cp target/linux/qualcommbe/dts/ipq5332-xiaomi-rd16.dts "$d/"
+          inc="-I $k/arch/arm64/boot/dts -I $k/scripts/dtc/include-prefixes -I $k/include"
+          cpp -nostdinc -undef -x assembler-with-cpp -D__DTS__ $inc \
+            "$d/ipq5332-xiaomi-rd16.dts" -o /tmp/rd16.pp.dts
+          dtc -@ -I dts -O dtb -o /tmp/rd16.dtb $inc /tmp/rd16.pp.dts
+          ls -l /tmp/rd16.dtb
+          dtc -I dtb -O dts /tmp/rd16.dtb | grep -E 'compatible = "xiaomi,rd16"'
+
       - name: Upload expanded .config
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: patch-check-config
           path: tree/.config
+          include-hidden-files: true
