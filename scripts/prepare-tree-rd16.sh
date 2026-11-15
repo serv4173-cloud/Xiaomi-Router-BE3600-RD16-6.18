@@ -19,7 +19,8 @@ ov=$here/target/linux/qualcommbe
 die() { echo "prepare-tree-rd16: $*" >&2; exit 1; }
 
 for f in "$img" "$net" "$cal" "$ov/image/xiaomi_rd16.mk.part" \
-	 "$ov/dts/ipq5332-xiaomi-rd16.dts" "$here/configs/xiaomi_rd16.diffconfig"; do
+	 "$ov/dts/ipq5332-xiaomi-rd16.dts" "$here/configs/xiaomi_rd16.diffconfig" \
+	 "$here/scripts/rd16-fit-alt-config.sh"; do
 	[ -f "$f" ] || die "missing file: $f"
 done
 grep -q 'define Device/xiaomi_rd15' "$img" || die "RD15 patch 0001 not applied (ipq53xx.mk)"
@@ -29,8 +30,8 @@ grep -q 'xiaomi,rd15' "$cal" || die "RD15 patch 0001 not applied (12-ath12k-cald
 # 1. image profile
 if ! grep -q 'define Device/xiaomi_rd16' "$img"; then
 	printf '\n' >> "$img"
-	sed -n '/^define Device\/xiaomi_rd16/,$p' "$ov/image/xiaomi_rd16.mk.part" >> "$img"
-	echo "added Device/xiaomi_rd16"
+	sed -n '/^define Build\/fit-dual/,$p' "$ov/image/xiaomi_rd16.mk.part" >> "$img"
+	echo "added Device/xiaomi_rd16 and Build/fit-dual"
 fi
 
 # 2. DTS
@@ -38,7 +39,13 @@ mkdir -p "$tgt/dts"
 cp "$ov/dts/ipq5332-xiaomi-rd16.dts" "$tgt/dts/"
 echo "copied ipq5332-xiaomi-rd16.dts"
 
-# 3. 02_network: new branch before the GL-BE3600 one
+# 3. FIT dual-config script
+mkdir -p "$dir/scripts"
+cp "$here/scripts/rd16-fit-alt-config.sh" "$dir/scripts/"
+chmod +x "$dir/scripts/rd16-fit-alt-config.sh"
+echo "copied rd16-fit-alt-config.sh"
+
+# 4. 02_network: new branch before the GL-BE3600 one
 if ! grep -q 'xiaomi,rd16)' "$net"; then
 	awk '/^\tgl\.inet,gl-be3600\)$/ && !d {
 		print "\txiaomi,rd16)"
@@ -53,7 +60,7 @@ if ! grep -q 'xiaomi,rd16)' "$net"; then
 	echo "added xiaomi,rd16 to 02_network"
 fi
 
-# 4. 12-ath12k-caldata: join the xiaomi,rd15 branches (two blocks)
+# 5. 12-ath12k-caldata: join the xiaomi,rd15 branches (two blocks)
 if ! grep -q 'xiaomi,rd16' "$cal"; then
 	sed 's/^\txiaomi,rd15)$/\txiaomi,rd15|\\\n\txiaomi,rd16)/' "$cal" > "$cal.new"
 	[ "$(grep -c 'xiaomi,rd16)' "$cal.new")" = 2 ] || { rm -f "$cal.new"; die "expected 2 xiaomi,rd15 branches in 12-ath12k-caldata"; }
@@ -61,7 +68,7 @@ if ! grep -q 'xiaomi,rd16' "$cal"; then
 	echo "added xiaomi,rd16 to 12-ath12k-caldata"
 fi
 
-# 5. config
+# 6. config
 cp "$here/configs/xiaomi_rd16.diffconfig" "$dir/.config"
 
 echo "RD16 layer applied to $dir"

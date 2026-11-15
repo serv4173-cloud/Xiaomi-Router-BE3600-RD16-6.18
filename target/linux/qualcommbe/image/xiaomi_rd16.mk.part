@@ -4,12 +4,22 @@
 # FACT: KERNEL_SIZE 10292k = 83 LEBs * 126976, stock RD16 root.ubi has reserved_pebs 83 for volume kernel.
 # OPEN: DEVICE_DTS_CONFIG. Stock RD16 kernel FIT has only config@1. APPSBL knows both
 #       config@1 and config@mi04.1-c2, but which one it requests on RD16 is not proven.
-#       The plan is a FIT with both configs; stock Device/ macros take one name, so this
-#       needs a custom build step that is not written yet.
-# OPEN: compatible of ipq5332-xiaomi-rd16.dts must be xiaomi,rd16 for board_name to match.
+#       Build/fit-dual creates a FIT with both configs pointing to the same kernel/fdt.
+
+define Build/fit-dual
+	$(call Build/fit-its,$(1))
+	$(TOPDIR)/scripts/rd16-fit-alt-config.sh $@.its config@mi04.1-c2 config@1
+	$(call Build/fit-image,$(1))
+endef
+
+define Device/FitDual
+	KERNEL_SUFFIX := -uImage.itb
+	KERNEL = kernel-bin | lzma | fit-dual lzma $$(KDIR)/image-$$(DEVICE_DTS).dtb
+	KERNEL_NAME := Image
+endef
 
 define Device/xiaomi_rd16
-	$(call Device/FitImageLzma)
+	$(call Device/FitDual)
 	$(call Device/UbiFit)
 	DEVICE_VENDOR := Xiaomi
 	DEVICE_MODEL := BE3600
