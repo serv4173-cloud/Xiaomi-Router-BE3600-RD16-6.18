@@ -87,7 +87,10 @@ jobs:
             "$d/ipq5332-xiaomi-rd16.dts" -o /tmp/rd16.pp.dts
           dtc -@ -I dts -O dtb -o /tmp/rd16.dtb /tmp/rd16.pp.dts
           ls -l /tmp/rd16.dtb
-          dtc -I dtb -O dts /tmp/rd16.dtb | grep -E 'compatible = "xiaomi,rd16"'
+          dtc -I dtb -O dts -o /tmp/rd16.back.dts /tmp/rd16.dtb 2>/dev/null
+          ls -l /tmp/rd16.back.dts
+          grep -n 'xiaomi,rd16' /tmp/rd16.back.dts | head -n 5
+          grep -q 'xiaomi,rd16' /tmp/rd16.back.dts
 
       - name: Upload expanded .config
         if: always()
