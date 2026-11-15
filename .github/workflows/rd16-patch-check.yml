@@ -92,6 +92,14 @@ jobs:
           grep -n 'xiaomi,rd16' /tmp/rd16.back.dts | head -n 5
           grep -q 'xiaomi,rd16' /tmp/rd16.back.dts
 
+      - name: Build full image (xiaomi_rd16)
+        run: |
+          cd tree
+          echo "Starting full build at $(date)"
+          make -j$(nproc) V=sc 2>&1 | tee /tmp/build.log
+          echo "Build finished at $(date)"
+          ls -lh bin/targets/qualcommbe/ipq53xx/ || true
+
       - name: Upload expanded .config
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,3 +107,14 @@ jobs:
           name: patch-check-config
           path: tree/.config
           include-hidden-files: true
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rd16-images
+          path: |
+            tree/bin/targets/qualcommbe/ipq53xx/*xiaomi_rd16*.itb
+            tree/bin/targets/qualcommbe/ipq53xx/*xiaomi_rd16*sysupgrade.bin
+            tree/bin/targets/qualcommbe/ipq53xx/sha256sums
+            /tmp/build.log
