@@ -1,0 +1,15 @@
+# DRAFT: add xiaomi,rd16 to the existing case branches of 12-ath12k-caldata.
+# Offsets checked against the RD16 0:ART dump: both blocks start with header 01 00 78 03,
+# size field 0xf800 at 0x1000 and 0x18800 at 0x12800. Region sizes as in the GL-BE3600 branch.
+
+# in "ath12k/IPQ5332/hw1.0/cal-ahb-c000000.wifi.bin":
+	gl.inet,gl-be3600|\
+	xiaomi,rd16)
+		caldata_extract "0:art" 0x1000 0x11800
+		;;
+
+# in "ath12k/QCN6432/hw1.0/cal-ahb-soc@0:wifi-qcn6432.bin":
+	gl.inet,gl-be3600|\
+	xiaomi,rd16)
+		caldata_extract "0:art" 0x12800 0x1b800
+		;;

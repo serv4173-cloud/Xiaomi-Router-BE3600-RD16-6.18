@@ -1,0 +1,74 @@
+#!/bin/sh
+# DRAFT, not built, not tested on hardware.
+# rd16-slot status|mark-good|boot-stock|boot-openwrt  (Xiaomi BE3600 RD16)
+# Slot layout for this port: OpenWrt lives in mtd "rootfs_1" (flag_boot_rootfs=1),
+# stock Xiaomi firmware stays in mtd "rootfs" (flag_boot_rootfs=0).
+# Only flag_* variables are written. bootargs/fsbootargs are NEVER touched
+# (UNVERIFIED hypothesis: APPSBL rebuilds them from flag_boot_rootfs).
+# OPEN: MTD name "0:appsblenv" and env size 0x10000/0x20000 are copied from RD15, not checked on RD16.
+
+[ "$(cat /tmp/sysinfo/board_name 2>/dev/null)" = "xiaomi,rd16" ] || {
+	echo "rd16-slot: not a Xiaomi RD16" >&2; exit 1; }
+
+CFG=/var/run/rd16-fw_env.config
+
+setup() {
+	local mtd
+	mtd=$(awk -F: '/"0:appsblenv"/ {print $1}' /proc/mtd)
+	[ -n "$mtd" ] || { echo "rd16-slot: 0:appsblenv not found" >&2; return 1; }
+	echo "/dev/$mtd 0x0 0x10000 0x20000" > "$CFG"
+	# Refuse to write unless the current env reads back with a valid CRC.
+	fw_printenv -c "$CFG" flag_boot_rootfs >/dev/null 2>/tmp/rd16-slot.err || {
+		echo "rd16-slot: env unreadable" >&2; return 1; }
+	grep -qi 'bad crc' /tmp/rd16-slot.err && {
+		echo "rd16-slot: env CRC bad, not writing" >&2; return 1; }
+	return 0
+}
+
+get() { fw_printenv -c "$CFG" -n "$1" 2>/dev/null; }
+
+current() {
+	case " $(cat /proc/cmdline) " in
+	*" ubi.mtd=rootfs "*) echo 0 ;;
+	*" ubi.mtd=rootfs_1 "*) echo 1 ;;
+	*) echo unknown ;;
+	esac
+}
+
+apply() {  # name=value ... ; writes only what differs, in one update
+	local script=/var/run/rd16-slot.script kv
+	: > "$script"
+	for kv in "$@"; do
+		[ "$(get "${kv%%=*}")" = "${kv#*=}" ] || echo "${kv%%=*} ${kv#*=}" >> "$script"
+	done
+	[ -s "$script" ] || { echo "rd16-slot: no change"; return 0; }
+	fw_setenv -c "$CFG" -s "$script" && echo "rd16-slot: updated $(wc -l < "$script") flag(s)"
+}
+
+show() {
+	echo "booted slot: $(current)"
+	for f in flag_boot_rootfs flag_last_success flag_boot_success \
+		 flag_try_sys1_failed flag_try_sys2_failed; do
+		echo "$f=$(get $f)"
+	done
+}
+
+setup || exit 1
+case "$1" in
+status) show ;;
+mark-good)
+	[ "$(current)" = 1 ] || { echo "rd16-slot: not booted from rootfs_1"; exit 1; }
+	set -- flag_boot_success=1 flag_try_sys1_failed=0 flag_try_sys2_failed=0
+	[ "$(get flag_boot_rootfs)" = 1 ] && set -- "$@" flag_last_success=1
+	apply "$@" && logger -t rd16-slot "slot 1 (OpenWrt) marked good"
+	;;
+boot-stock)
+	apply flag_boot_rootfs=0 flag_last_success=0 flag_boot_success=1 \
+	      flag_try_sys1_failed=0 flag_try_sys2_failed=0 && show && reboot
+	;;
+boot-openwrt)
+	apply flag_boot_rootfs=1 flag_last_success=1 flag_boot_success=1 \
+	      flag_try_sys1_failed=0 flag_try_sys2_failed=0 && show
+	;;
+*) echo "usage: $0 status|mark-good|boot-stock|boot-openwrt"; exit 2 ;;
+esac

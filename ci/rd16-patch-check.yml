@@ -1,0 +1,76 @@
+# DRAFT, не запускался. Положить в .github/workflows/ только после ревью.
+# Задача: воспроизводимо собрать дерево fivefold3 + патчи RD15 + слой RD16 и проверить,
+# что патчи применяются. Полная сборка НЕ включена: нет профиля Device/xiaomi_rd16 и diffconfig
+# для RD16, а их нельзя писать без данных с устройства (MTD, число LEB, имя FIT-конфигурации).
+# Файлы Xiaomi и Wi-Fi прошивки здесь не скачиваются и не используются.
+name: rd16-6.18-patch-check
+
+on:
+  workflow_dispatch:
+
+env:
+  FIVEFOLD3_SHA: e46ea77ba4f431c72301c3d07220e454450b3070
+  RD15_SHA: d9c8a55a1eedf0956f85f0ef2a591a30d0415464
+
+jobs:
+  patch-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout (слой RD16)
+        uses: actions/checkout@v4
+        with:
+          path: overlay
+
+      - name: Clone pinned sources
+        run: |
+          set -eu
+          git clone https://github.com/fivefold3/openwrt-gl-be3600.git tree
+          git -C tree checkout --detach "$FIVEFOLD3_SHA"
+          git clone https://github.com/victorpivotto-cloud/openwrt-xiaomi-be3600-rd15.git rd15
+          git -C rd15 checkout --detach "$RD15_SHA"
+          test "$(cat rd15/BASE_COMMIT)" = "$FIVEFOLD3_SHA"
+
+      - name: Apply RD15 patches (check first)
+        run: |
+          set -eu
+          cd tree
+          for p in ../rd15/patches/*.patch; do
+            git apply --check "$p"
+            git apply "$p"
+            echo "applied $(basename "$p")"
+          done
+          cp -R ../rd15/openwrt-tree/. .
+          cp ../rd15/configs/feeds.conf feeds.conf
+
+      - name: Check RD16 DTS is present and balanced
+        run: |
+          set -eu
+          f=overlay/target/linux/qualcommbe/dts/ipq5332-xiaomi-rd16.dts
+          test -f "$f"
+          python3 - "$f" <<'PY'
+          import re, sys
+          t = re.sub(r'/\*.*?\*/', '', open(sys.argv[1], encoding='utf-8').read(), flags=re.S)
+          assert t.count('{') == t.count('}'), 'unbalanced braces'
+          print('braces balanced')
+          PY
+
+      - name: Feeds and kernel prepare (no full build)
+        run: |
+          set -eu
+          cd tree
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential clang flex bison g++ gawk gettext \
+            git libncurses-dev libssl-dev python3 rsync swig unzip zlib1g-dev file wget
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          cp ../rd15/configs/xiaomi_rd15.diffconfig .config
+          make defconfig
+          make target/linux/prepare V=s -j"$(nproc)"
+
+      - name: Upload expanded .config
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-check-config
+          path: tree/.config

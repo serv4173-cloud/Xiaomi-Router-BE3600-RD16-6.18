@@ -1,0 +1,25 @@
+# DRAFT: fragment for target/linux/qualcommbe/image/ipq53xx.mk (append after xiaomi_rd15).
+# Not built, not tested.
+#
+# FACT: KERNEL_SIZE 10292k = 83 LEBs * 126976, stock RD16 root.ubi has reserved_pebs 83 for volume kernel.
+# OPEN: DEVICE_DTS_CONFIG. Stock RD16 kernel FIT has only config@1. APPSBL knows both
+#       config@1 and config@mi04.1-c2, but which one it requests on RD16 is not proven.
+#       The plan is a FIT with both configs; stock Device/ macros take one name, so this
+#       needs a custom build step that is not written yet.
+# OPEN: compatible of ipq5332-xiaomi-rd16.dts must be xiaomi,rd16 for board_name to match.
+
+define Device/xiaomi_rd16
+	$(call Device/FitImageLzma)
+	$(call Device/UbiFit)
+	DEVICE_VENDOR := Xiaomi
+	DEVICE_MODEL := BE3600
+	DEVICE_VARIANT := RD16
+	DEVICE_DTS := ipq5332-xiaomi-rd16
+	DEVICE_DTS_CONFIG := config@mi04.1-c2
+	SOC := ipq5332
+	BLOCKSIZE := 128k
+	PAGESIZE := 2048
+	KERNEL_SIZE := 10292k
+	DEVICE_PACKAGES := kmod-ath12k ath12k-firmware-ipq5332 kmod-qrtr-smd uboot-envtools
+endef
+TARGET_DEVICES += xiaomi_rd16
