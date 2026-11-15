@@ -1,8 +1,7 @@
-# DRAFT, не запускался. Положить в .github/workflows/ только после ревью.
-# Задача: воспроизводимо собрать дерево fivefold3 + патчи RD15 + слой RD16 и проверить,
-# что патчи применяются. Полная сборка НЕ включена: нет профиля Device/xiaomi_rd16 и diffconfig
-# для RD16, а их нельзя писать без данных с устройства (MTD, число LEB, имя FIT-конфигурации).
-# Файлы Xiaomi и Wi-Fi прошивки здесь не скачиваются и не используются.
+# Reproducible check: fivefold3 + RD15 patches + RD16 layer.
+# Runs only by hand (workflow_dispatch). Stops at `make target/linux/prepare`:
+# no full build, no Xiaomi or Wi-Fi vendor files are downloaded.
+# DRAFT: the result of this run is the first real check of the layer.
 name: rd16-6.18-patch-check
 
 on:
@@ -15,14 +14,14 @@ env:
 jobs:
   patch-check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
-      - name: Checkout (слой RD16)
+      - name: Checkout RD16 layer
         uses: actions/checkout@v4
         with:
           path: overlay
 
-      - name: Clone pinned sources
+      - name: Clone pinned sources (read only)
         run: |
           set -eu
           git clone https://github.com/fivefold3/openwrt-gl-be3600.git tree
@@ -43,10 +42,16 @@ jobs:
           cp -R ../rd15/openwrt-tree/. .
           cp ../rd15/configs/feeds.conf feeds.conf
 
-      - name: Check RD16 DTS is present and balanced
+      - name: Apply RD16 layer
         run: |
           set -eu
-          f=overlay/target/linux/qualcommbe/dts/ipq5332-xiaomi-rd16.dts
+          sh overlay/scripts/prepare-tree-rd16.sh "$PWD/tree"
+          grep -q 'define Device/xiaomi_rd16' tree/target/linux/qualcommbe/image/ipq53xx.mk
+
+      - name: Check RD16 DTS braces
+        run: |
+          set -eu
+          f=tree/target/linux/qualcommbe/dts/ipq5332-xiaomi-rd16.dts
           test -f "$f"
           python3 - "$f" <<'PY'
           import re, sys
@@ -55,7 +60,7 @@ jobs:
           print('braces balanced')
           PY
 
-      - name: Feeds and kernel prepare (no full build)
+      - name: Feeds, defconfig and kernel prepare (no full build)
         run: |
           set -eu
           cd tree
@@ -64,8 +69,8 @@ jobs:
             git libncurses-dev libssl-dev python3 rsync swig unzip zlib1g-dev file wget
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          cp ../rd15/configs/xiaomi_rd15.diffconfig .config
           make defconfig
+          grep -q '^CONFIG_TARGET_qualcommbe_ipq53xx_DEVICE_xiaomi_rd16=y' .config
           make target/linux/prepare V=s -j"$(nproc)"
 
       - name: Upload expanded .config
