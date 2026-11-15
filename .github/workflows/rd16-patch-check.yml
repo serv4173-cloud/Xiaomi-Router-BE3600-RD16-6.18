@@ -85,7 +85,7 @@ jobs:
           inc="-I $k/arch/arm64/boot/dts -I $k/scripts/dtc/include-prefixes -I $k/include"
           cpp -nostdinc -undef -x assembler-with-cpp -D__DTS__ $inc \
             "$d/ipq5332-xiaomi-rd16.dts" -o /tmp/rd16.pp.dts
-          dtc -@ -I dts -O dtb -o /tmp/rd16.dtb $inc /tmp/rd16.pp.dts
+          dtc -@ -I dts -O dtb -o /tmp/rd16.dtb /tmp/rd16.pp.dts
           ls -l /tmp/rd16.dtb
           dtc -I dtb -O dts /tmp/rd16.dtb | grep -E 'compatible = "xiaomi,rd16"'
 
