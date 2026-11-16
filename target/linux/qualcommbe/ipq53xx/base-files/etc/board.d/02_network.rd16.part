@@ -1,6 +1,6 @@
 # DRAFT: case branch for ipq53xx_setup_interfaces() in 02_network.
-# Labels follow ipq5332-xiaomi-rd16.dts: wan = switch port 3, lan1..lan3 = ports 1, 2, 0.
-# WAN = switch port 3 per DTS (ethernet-port@3, label wan); jack order is not checked with cables.
+# Labels follow ipq5332-xiaomi-rd16.dts: wan = switch port 3, lan1..lan3 = ports 2, 1, 0.
+# WAN = switch port 3 per DTS (ethernet-port@3, label wan); jack order verified with cables on stock: socket 1 (leftmost) = wan, 2..4 = lan1..lan3.
 # MAC addresses are not set here: WAN MAC (ART 0x0) is not wired, base MAC is ART 0x6.
 	xiaomi,rd16)
 		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3" "wan"

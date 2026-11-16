@@ -285,7 +285,7 @@
 	 * MDIO core releases it when the bus registers.
 	 */
 
-	/* Motorcomm YT9215S: LAN1-3 = internal PHYs 1-3 (stock "Lan2: Phy2"),
+	/* Motorcomm YT9215S: four 1G ports, internal PHYs 0-3 (stock Lan1=Phy3 .. Lan4=Phy0),
 	 * CPU on external port 8 at 2500base-x towards PPE port 2.
 	 */
 	switch@1d {
@@ -319,7 +319,7 @@
 
 			/* RD16 vendor DTB: port@0 labelled "port4", internal PHY 0.
 			 * Vendor names: reg3=port1 (WAN per 02_network), reg2=port2, reg1=port3,
-			 * reg0=port4 (LAN). lan1..lan3 are placeholders, jack order not verified.
+			 * reg0=port4 (LAN). Jack order verified with cables on stock (sockets 1..4 left to right = reg3,2,1,0): socket 1 = wan, 2 = lan1, 3 = lan2, 4 = lan3.
 			 */
 			ethernet-port@0 {
 				reg = <0>;
@@ -330,14 +330,14 @@
 
 			ethernet-port@1 {
 				reg = <1>;
-				label = "lan1";
+				label = "lan2";
 				phy-mode = "internal";
 				phy-handle = <&sw_phy1>;
 			};
 
 			ethernet-port@2 {
 				reg = <2>;
-				label = "lan2";
+				label = "lan1";
 				phy-mode = "internal";
 				phy-handle = <&sw_phy2>;
 			};
