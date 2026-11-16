@@ -116,5 +116,6 @@ jobs:
           path: |
             tree/bin/targets/qualcommbe/ipq53xx/*xiaomi_rd16*.itb
             tree/bin/targets/qualcommbe/ipq53xx/*xiaomi_rd16*sysupgrade.bin
+            tree/bin/targets/qualcommbe/ipq53xx/*xiaomi_rd16*factory.ubi
             tree/bin/targets/qualcommbe/ipq53xx/sha256sums
             /tmp/build.log

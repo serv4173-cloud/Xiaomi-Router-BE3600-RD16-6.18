@@ -68,7 +68,13 @@ if ! grep -q 'xiaomi,rd16' "$cal"; then
 	echo "added xiaomi,rd16 to 12-ath12k-caldata"
 fi
 
-# 6. config
+# 6. first-boot files: RD16 safe defaults (RD15 files/ come from the RD15 tree)
+mkdir -p "$dir/files"
+cp -R "$here/files/." "$dir/files/"
+chmod +x "$dir/files/etc/uci-defaults/99-rd16-safe-defaults"
+echo "copied files/ (99-rd16-safe-defaults)"
+
+# 7. config
 cp "$here/configs/xiaomi_rd16.diffconfig" "$dir/.config"
 
 echo "RD16 layer applied to $dir"
