@@ -1,0 +1,4 @@
+	xiaomi,rd16)
+		echo "ERROR: RD16 sysupgrade disabled (slot 1 logic untested, UART required)" >&2
+		return 1
+		;;

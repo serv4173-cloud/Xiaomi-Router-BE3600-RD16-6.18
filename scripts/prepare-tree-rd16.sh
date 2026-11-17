@@ -5,7 +5,7 @@
 # Apply the RD16 layer on top of a fivefold3 tree that already has the RD15
 # patch 0001 applied (it adds xiaomi,rd15 branches that this script extends):
 #   prepare-tree-rd16.sh TREE_DIR
-# Does NOT add a platform.sh branch: the RD16 slot/upgrade logic is not written.
+# platform.sh only gets REFUSAL branches for xiaomi,rd16: sysupgrade stays disabled.
 set -eu
 
 here=$(cd "$(dirname "$0")/.." && pwd)
@@ -20,6 +20,8 @@ die() { echo "prepare-tree-rd16: $*" >&2; exit 1; }
 
 for f in "$img" "$net" "$cal" "$ov/image/xiaomi_rd16.mk.part" \
 	 "$ov/dts/ipq5332-xiaomi-rd16.dts" "$here/configs/xiaomi_rd16.diffconfig" \
+	 "$ov/ipq53xx/base-files/lib/upgrade/rd16-upgrade.sh" \
+	 "$ov/ipq53xx/base-files/lib/upgrade/platform.sh.rd16.part" \
 	 "$here/scripts/rd16-fit-alt-config.sh"; do
 	[ -f "$f" ] || die "missing file: $f"
 done
@@ -74,8 +76,25 @@ cp -R "$here/files/." "$dir/files/"
 chmod +x "$dir/files/etc/uci-defaults/99-rd16-safe-defaults"
 echo "copied files/ (99-rd16-safe-defaults)"
 
+# 6b. upgrade logic (dormant: RD16_UPGRADE_ENABLED=0) and refusal branches in platform.sh
+upg=$tgt/ipq53xx/base-files/lib/upgrade
+plat=$upg/platform.sh
+part=$ov/ipq53xx/base-files/lib/upgrade/platform.sh.rd16.part
+[ -f "$plat" ] || die "missing file: $plat"
+mkdir -p "$upg"
+cp "$ov/ipq53xx/base-files/lib/upgrade/rd16-upgrade.sh" "$upg/"
+echo "copied rd16-upgrade.sh"
+if ! grep -q 'xiaomi,rd16)' "$plat"; then
+	awk -v part="$part" '/^\tgl\.inet,gl-be3600\)$/ { while ((getline l < part) > 0) print l; close(part); n++ }
+		{ print }
+		END { if (n != 2) exit 1 }' "$plat" > "$plat.new" || { rm -f "$plat.new"; die "expected 2 gl-be3600 branches in platform.sh"; }
+	cat "$plat.new" > "$plat"
+	rm -f "$plat.new"
+	echo "added xiaomi,rd16 refusal branches to platform.sh"
+fi
+
 # 7. config
 cp "$here/configs/xiaomi_rd16.diffconfig" "$dir/.config"
 
 echo "RD16 layer applied to $dir"
-echo "NOTE: platform.sh has no xiaomi,rd16 branch yet (slot/upgrade logic not written)."
+echo "NOTE: platform.sh xiaomi,rd16 branches refuse sysupgrade (RD16_UPGRADE_ENABLED=0, untested)."
